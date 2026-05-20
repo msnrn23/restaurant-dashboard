@@ -489,7 +489,10 @@ function applyFilters(){
   if(promo!=='')parts.push(promo==='1'?'With promo':'No promo');
   document.getElementById('hdr-summary').textContent=parts.length?parts.join(' · '):'All cuisines · All promotions';
 
-  renderAll();
+  renderedTabs.clear();
+  renderKPI();
+  renderInsights();
+  renderTab(activeTab.current);
 }
 
 function resetFilters(){
@@ -899,28 +902,43 @@ function exportCSV(){
 
 // ── Tab switching ──
 const activeTab={current:'overview'};
+const renderedTabs=new Set();
+
+function renderTab(id){
+  if(id==='overview') renderOverview();
+  else if(id==='trends') renderTrends();
+  else if(id==='relations') renderRelations();
+  else if(id==='cuisine') renderCuisine();
+  else if(id==='data') renderTable();
+  renderedTabs.add(id);
+}
+
 function switchTab(id,btn){
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('on'));
   if(btn)btn.classList.add('on');
   document.getElementById('tab-'+id).classList.add('on');
   activeTab.current=id;
-  setTimeout(()=>Object.values(chartMap).forEach(c=>{try{c.resize()}catch(e){}}),50);
+  if(!renderedTabs.has(id)){
+    setTimeout(()=>renderTab(id),30);
+  } else {
+    setTimeout(()=>Object.values(chartMap).forEach(c=>{try{c.resize()}catch(e){}}),50);
+  }
 }
 
-// ── Master render ──
+// ── Master render (KPI+insights always, overview on load) ──
 function renderAll(){
   renderKPI();
   renderInsights();
-  renderOverview();
-  renderTrends();
-  renderRelations();
-  renderCuisine();
-  renderTable();
+  renderTab('overview');
 }
 
 // ── Boot ──
-renderAll();
+if(document.readyState==='loading'){
+  document.addEventListener('DOMContentLoaded',renderAll);
+} else {
+  renderAll();
+}
 </script>
 </body>
 </html>

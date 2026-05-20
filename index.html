@@ -1,0 +1,926 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Restaurant Revenue Analytics Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="data.js"></script>
+<style>
+:root{
+  --bg:#07070d;--s1:#0f0f18;--s2:#171723;--s3:#1e1e2e;
+  --bd:rgba(255,255,255,0.06);--bd2:rgba(255,255,255,0.11);
+  --tx:#eeeef8;--tx2:#7878a0;--tx3:#3a3a55;
+  --amber:#f59e0b;--ambg:rgba(245,158,11,0.12);
+  --blue:#3b82f6;--blbg:rgba(59,130,246,0.12);
+  --green:#10b981;--gnbg:rgba(16,185,129,0.1);
+  --rose:#f43f5e;--rsbg:rgba(244,63,94,0.1);
+  --purple:#a78bfa;--prbg:rgba(167,139,250,0.1);
+  --cyan:#22d3ee;--cybg:rgba(34,211,238,0.1);
+  --font:'Syne',sans-serif;--mono:'DM Mono',monospace;
+  --r:10px;--rl:14px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{font-size:14px}
+body{background:var(--bg);color:var(--tx);font-family:var(--font);min-height:100vh}
+
+/* ─── HEADER ─── */
+.hdr{
+  position:sticky;top:0;z-index:200;height:54px;
+  background:rgba(7,7,13,0.9);backdrop-filter:blur(18px);
+  border-bottom:1px solid var(--bd);
+  display:flex;align-items:center;gap:12px;padding:0 1.4rem;
+}
+.logo{font-size:1.05rem;font-weight:800;letter-spacing:-0.02em}
+.logo span{color:var(--amber)}
+.hdr-pill{
+  font-family:var(--mono);font-size:0.65rem;color:var(--tx3);
+  background:var(--s2);border:1px solid var(--bd2);
+  padding:3px 9px;border-radius:20px;
+}
+.hdr-right{margin-left:auto;display:flex;align-items:center;gap:14px;font-family:var(--mono);font-size:0.7rem;color:var(--tx2)}
+#live-count{color:var(--amber);font-weight:500}
+
+/* ─── FILTER BAR ─── */
+.fbar{
+  position:sticky;top:54px;z-index:190;
+  background:var(--s1);border-bottom:1px solid var(--bd);
+  padding:.7rem 1.4rem;display:flex;align-items:flex-end;gap:10px;flex-wrap:wrap;
+}
+.fg{display:flex;flex-direction:column;gap:3px}
+.fl{font-family:var(--mono);font-size:0.6rem;font-weight:600;color:var(--tx3);text-transform:uppercase;letter-spacing:.08em}
+select{
+  background:var(--s2);border:1px solid var(--bd2);color:var(--tx);
+  border-radius:var(--r);padding:6px 10px;font-family:var(--font);font-size:.78rem;
+  cursor:pointer;outline:none;min-width:100px;transition:border-color .15s;
+}
+select:focus{border-color:var(--amber)}
+select option{background:#17172f}
+.range-wrap{display:flex;flex-direction:column;gap:3px;min-width:140px}
+.range-row{display:flex;align-items:center;gap:6px}
+input[type=range]{
+  flex:1;-webkit-appearance:none;height:3px;border-radius:2px;
+  background:var(--s3);outline:none;cursor:pointer;
+}
+input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;width:14px;height:14px;border-radius:50%;
+  background:var(--amber);cursor:pointer;
+}
+.range-val{font-family:var(--mono);font-size:.68rem;color:var(--amber);min-width:28px;text-align:right}
+.btn-reset{
+  background:transparent;border:1px solid var(--bd2);color:var(--tx2);
+  border-radius:var(--r);padding:6px 14px;font-family:var(--font);font-size:.75rem;
+  cursor:pointer;transition:border-color .15s,color .15s;white-space:nowrap;
+}
+.btn-reset:hover{border-color:var(--amber);color:var(--amber)}
+
+/* ─── KPI ROW ─── */
+.main{padding:1.2rem 1.4rem;max-width:1480px;margin:0 auto}
+.kpi-row{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:1.2rem}
+.kpi{background:var(--s1);border:1px solid var(--bd);border-radius:var(--rl);padding:1rem 1.1rem;position:relative;overflow:hidden}
+.kpi::before{content:'';position:absolute;inset:0;background:var(--kbg,transparent);opacity:.5;pointer-events:none}
+.kpi-label{font-size:.65rem;font-weight:600;color:var(--tx2);text-transform:uppercase;letter-spacing:.07em;margin-bottom:.4rem}
+.kpi-val{font-size:1.55rem;font-weight:800;line-height:1;letter-spacing:-.02em}
+.kpi-sub{font-size:.68rem;color:var(--tx3);margin-top:.3rem;font-family:var(--mono)}
+
+/* ─── TAB BAR ─── */
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--bd);margin-bottom:1.1rem}
+.tab{background:none;border:none;color:var(--tx2);font-family:var(--font);font-size:.82rem;font-weight:600;padding:8px 16px;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;transition:color .15s,border-color .15s;border-radius:0}
+.tab:hover{color:var(--tx)}
+.tab.on{color:var(--amber);border-bottom-color:var(--amber)}
+.panel{display:none}.panel.on{display:block}
+
+/* ─── CHART GRID ─── */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:12px}
+.g13{display:grid;grid-template-columns:1fr 2fr;gap:12px;margin-bottom:12px}
+.g21{display:grid;grid-template-columns:2fr 1fr;gap:12px;margin-bottom:12px}
+.card{background:var(--s1);border:1px solid var(--bd);border-radius:var(--rl);padding:1.1rem}
+.card.full{grid-column:1/-1}
+.ct{font-size:.72rem;font-weight:700;color:var(--tx2);text-transform:uppercase;letter-spacing:.07em;margin-bottom:.7rem}
+.leg{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px}
+.li{display:flex;align-items:center;gap:4px;font-size:.68rem;color:var(--tx2)}
+.ld{width:8px;height:8px;border-radius:2px;flex-shrink:0}
+
+/* ─── RELATIONSHIP MATRIX ─── */
+.matrix-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px}
+.corr-badge{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:4px 10px;border-radius:20px;font-family:var(--mono);font-size:.7rem;font-weight:500;
+}
+.corr-strong{background:var(--gnbg);color:var(--green)}
+.corr-mod{background:var(--blbg);color:var(--blue)}
+.corr-weak{background:var(--rsbg);color:var(--rose)}
+
+/* ─── INSIGHT STRIP ─── */
+.insight-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.insight{
+  background:var(--s2);border:1px solid var(--bd);border-radius:var(--r);
+  padding:.6rem .9rem;font-size:.72rem;color:var(--tx2);flex:1;min-width:200px;
+  border-left:3px solid var(--amber);
+}
+.insight strong{color:var(--amber)}
+
+/* ─── DATA TABLE ─── */
+.tbl-wrap{overflow-x:auto;max-height:340px;overflow-y:auto}
+.dtbl{width:100%;border-collapse:collapse;font-size:.72rem}
+.dtbl th{
+  position:sticky;top:0;
+  padding:8px 10px;font-weight:700;color:var(--tx2);background:var(--s2);
+  border-bottom:1px solid var(--bd);text-align:right;
+  font-size:.65rem;text-transform:uppercase;letter-spacing:.05em;white-space:nowrap;
+}
+.dtbl th:first-child{text-align:left}
+.dtbl td{padding:7px 10px;border-bottom:1px solid var(--bd);text-align:right;color:var(--tx);font-family:var(--mono)}
+.dtbl td:first-child{text-align:left;font-family:var(--font);font-weight:600}
+.dtbl tr:hover td{background:rgba(255,255,255,.02)}
+.rev-high{color:var(--green)}
+.rev-mid{color:var(--amber)}
+.rev-low{color:var(--rose)}
+
+/* ─── SCATTER CONTROLS ─── */
+.axis-row{display:flex;gap:12px;align-items:center;margin-bottom:.7rem;flex-wrap:wrap}
+.axis-label{font-size:.68rem;color:var(--tx2);font-family:var(--mono)}
+
+/* ─── RESPONSIVE ─── */
+@media(max-width:900px){
+  .kpi-row{grid-template-columns:repeat(3,1fr)}
+  .g2,.g3,.g13,.g21,.matrix-grid{grid-template-columns:1fr}
+}
+@media(max-width:560px){
+  .kpi-row{grid-template-columns:repeat(2,1fr)}
+}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="hdr">
+  <div class="logo">Restaurant<span>IQ</span></div>
+  <div class="hdr-pill">Analytics Dashboard</div>
+  <div class="hdr-right">
+    <span>Showing <span id="live-count">1,000</span> records</span>
+    <span style="color:var(--tx3)">|</span>
+    <span id="hdr-summary">All cuisines · All promotions</span>
+  </div>
+</header>
+
+<!-- FILTER BAR -->
+<div class="fbar">
+  <div class="fg">
+    <div class="fl">Cuisine type</div>
+    <select id="f-cuisine" onchange="applyFilters()">
+      <option value="">All cuisines</option>
+      <option>American</option>
+      <option>Italian</option>
+      <option>Japanese</option>
+      <option>Mexican</option>
+    </select>
+  </div>
+
+  <div class="fg">
+    <div class="fl">Promotions</div>
+    <select id="f-promo" onchange="applyFilters()">
+      <option value="">All</option>
+      <option value="1">With promo</option>
+      <option value="0">No promo</option>
+    </select>
+  </div>
+
+  <div class="fg">
+    <div class="fl">Revenue band ($)</div>
+    <select id="f-rev" onchange="applyFilters()">
+      <option value="">All</option>
+      <option value="0,150">Low (&lt;$150)</option>
+      <option value="150,300">Mid ($150–$300)</option>
+      <option value="300,450">High ($300–$450)</option>
+      <option value="450,999">Top ($450+)</option>
+    </select>
+  </div>
+
+  <div class="fg">
+    <div class="fl">Customers (min)</div>
+    <div class="range-wrap">
+      <div class="range-row">
+        <input type="range" id="f-cust" min="10" max="99" value="10" oninput="document.getElementById('cv-cust').textContent=this.value;applyFilters()">
+        <span class="range-val" id="cv-cust">10</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="fg">
+    <div class="fl">Marketing ($, min)</div>
+    <div class="range-wrap">
+      <div class="range-row">
+        <input type="range" id="f-mkt" min="0" max="19" value="0" oninput="document.getElementById('cv-mkt').textContent=this.value+'k';applyFilters()">
+        <span class="range-val" id="cv-mkt">0k</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="fg">
+    <div class="fl">Reviews (min)</div>
+    <div class="range-wrap">
+      <div class="range-row">
+        <input type="range" id="f-rev2" min="0" max="99" value="0" oninput="document.getElementById('cv-rev2').textContent=this.value;applyFilters()">
+        <span class="range-val" id="cv-rev2">0</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="fg">
+    <div class="fl">Menu price (max $)</div>
+    <div class="range-wrap">
+      <div class="range-row">
+        <input type="range" id="f-price" min="10" max="50" value="50" oninput="document.getElementById('cv-price').textContent='$'+this.value;applyFilters()">
+        <span class="range-val" id="cv-price">$50</span>
+      </div>
+    </div>
+  </div>
+
+  <button class="btn-reset" onclick="resetFilters()">↺ Reset</button>
+</div>
+
+<!-- DASHBOARD BODY -->
+<div class="main">
+
+  <!-- KPI STRIP -->
+  <div class="kpi-row" id="kpi-row"></div>
+
+  <!-- INSIGHTS -->
+  <div class="insight-row" id="insight-row"></div>
+
+  <!-- TABS -->
+  <div class="tabs">
+    <button class="tab on" onclick="switchTab('overview',this)">Overview</button>
+    <button class="tab" onclick="switchTab('trends',this)">Trends & Distributions</button>
+    <button class="tab" onclick="switchTab('relations',this)">Relationships</button>
+    <button class="tab" onclick="switchTab('cuisine',this)">Cuisine Deep-dive</button>
+    <button class="tab" onclick="switchTab('data',this)">Data Table</button>
+  </div>
+
+  <!-- OVERVIEW -->
+  <div class="panel on" id="tab-overview">
+    <div class="g2">
+      <div class="card">
+        <div class="ct">Revenue by cuisine type</div>
+        <div style="position:relative;height:240px"><canvas id="c-rev-cuisine" role="img" aria-label="Revenue by cuisine type bar chart"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="ct">Promotion impact on revenue</div>
+        <div style="position:relative;height:240px"><canvas id="c-promo" role="img" aria-label="Promotion impact bar chart"></canvas></div>
+      </div>
+    </div>
+    <div class="g3">
+      <div class="card">
+        <div class="ct">Revenue distribution</div>
+        <div style="position:relative;height:200px"><canvas id="c-rev-dist" role="img" aria-label="Revenue distribution histogram"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="ct">Cuisine share (count)</div>
+        <div class="leg" id="leg-cuisine-pie"></div>
+        <div style="position:relative;height:170px"><canvas id="c-cuisine-pie" role="img" aria-label="Cuisine share donut chart"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="ct">Avg spend vs revenue band</div>
+        <div style="position:relative;height:200px"><canvas id="c-spend-band" role="img" aria-label="Avg customer spending by revenue band"></canvas></div>
+      </div>
+    </div>
+    <div class="card full">
+      <div class="ct">Revenue by customers × marketing — heatmap view</div>
+      <div style="position:relative;height:200px"><canvas id="c-heatmap" role="img" aria-label="Revenue heatmap by customer and marketing buckets"></canvas></div>
+    </div>
+  </div>
+
+  <!-- TRENDS -->
+  <div class="panel" id="tab-trends">
+    <div class="g2">
+      <div class="card">
+        <div class="ct">Revenue trend line — sorted by customer count</div>
+        <div style="position:relative;height:240px"><canvas id="c-trend-cust" role="img" aria-label="Revenue trend by customer count"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="ct">Revenue trend — sorted by marketing spend</div>
+        <div style="position:relative;height:240px"><canvas id="c-trend-mkt" role="img" aria-label="Revenue trend by marketing spend"></canvas></div>
+      </div>
+    </div>
+    <div class="g2">
+      <div class="card">
+        <div class="ct">Menu price distribution</div>
+        <div style="position:relative;height:210px"><canvas id="c-price-dist" role="img" aria-label="Menu price distribution"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="ct">Reviews distribution</div>
+        <div style="position:relative;height:210px"><canvas id="c-review-dist" role="img" aria-label="Reviews distribution"></canvas></div>
+      </div>
+    </div>
+    <div class="card full">
+      <div class="ct">Revenue by customer count buckets — cuisine breakdown</div>
+      <div class="leg" id="leg-cust-stack"></div>
+      <div style="position:relative;height:220px"><canvas id="c-cust-stack" role="img" aria-label="Stacked revenue by customer bucket and cuisine"></canvas></div>
+    </div>
+  </div>
+
+  <!-- RELATIONSHIPS -->
+  <div class="panel" id="tab-relations">
+    <div style="margin-bottom:10px">
+      <div class="axis-row">
+        <span class="axis-label">X-axis:</span>
+        <select id="sc-x" onchange="renderScatter()">
+          <option value="Number_of_Customers">Customers</option>
+          <option value="Marketing_Spend">Marketing spend</option>
+          <option value="Menu_Price">Menu price</option>
+          <option value="Reviews">Reviews</option>
+          <option value="Average_Customer_Spending">Avg customer spend</option>
+        </select>
+        <span class="axis-label">Y-axis:</span>
+        <select id="sc-y" onchange="renderScatter()">
+          <option value="Monthly_Revenue">Monthly revenue</option>
+          <option value="Number_of_Customers">Customers</option>
+          <option value="Marketing_Spend">Marketing spend</option>
+          <option value="Reviews">Reviews</option>
+          <option value="Average_Customer_Spending">Avg customer spend</option>
+        </select>
+        <span class="axis-label">Color by:</span>
+        <select id="sc-color" onchange="renderScatter()">
+          <option value="Cuisine_Type">Cuisine type</option>
+          <option value="Promotions">Promotions</option>
+        </select>
+      </div>
+    </div>
+    <div class="g21">
+      <div class="card">
+        <div class="ct" id="scatter-title">Customers vs Monthly Revenue</div>
+        <div class="leg" id="leg-scatter"></div>
+        <div style="position:relative;height:320px"><canvas id="c-scatter" role="img" aria-label="Scatter plot of selected variables"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="ct">Correlation matrix</div>
+        <div id="corr-matrix" style="display:flex;flex-direction:column;gap:6px;padding-top:4px"></div>
+      </div>
+    </div>
+    <div class="matrix-grid">
+      <div class="card">
+        <div class="ct">Customers → Revenue (binned)</div>
+        <div style="position:relative;height:180px"><canvas id="c-rel1" role="img" aria-label="Customer count vs revenue bins"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="ct">Marketing → Revenue (binned)</div>
+        <div style="position:relative;height:180px"><canvas id="c-rel2" role="img" aria-label="Marketing spend vs revenue bins"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="ct">Reviews → Revenue (binned)</div>
+        <div style="position:relative;height:180px"><canvas id="c-rel3" role="img" aria-label="Reviews vs revenue bins"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CUISINE DEEP-DIVE -->
+  <div class="panel" id="tab-cuisine">
+    <div class="g2">
+      <div class="card">
+        <div class="ct">Avg KPIs by cuisine</div>
+        <div style="position:relative;height:250px"><canvas id="c-cuisine-radar" role="img" aria-label="Radar chart of KPIs by cuisine"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="ct">Revenue range by cuisine (min / avg / max)</div>
+        <div style="position:relative;height:250px"><canvas id="c-cuisine-range" role="img" aria-label="Revenue range by cuisine"></canvas></div>
+      </div>
+    </div>
+    <div class="g3">
+      <div class="card">
+        <div class="ct">Marketing spend by cuisine</div>
+        <div style="position:relative;height:200px"><canvas id="c-mkt-cuisine" role="img" aria-label="Marketing spend by cuisine"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="ct">Avg menu price by cuisine</div>
+        <div style="position:relative;height:200px"><canvas id="c-price-cuisine" role="img" aria-label="Menu price by cuisine"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="ct">Promo rate by cuisine (%)</div>
+        <div style="position:relative;height:200px"><canvas id="c-promo-cuisine" role="img" aria-label="Promo rate by cuisine"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- DATA TABLE -->
+  <div class="panel" id="tab-data">
+    <div class="card full">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.8rem">
+        <div class="ct" style="margin:0">Filtered records <span id="tbl-count" style="color:var(--amber);font-family:var(--mono)"></span></div>
+        <button class="btn-reset" onclick="exportCSV()">⬇ Export CSV</button>
+      </div>
+      <div class="tbl-wrap"><table class="dtbl" id="data-table"><thead><tr>
+        <th style="text-align:left">Cuisine</th>
+        <th>Customers</th>
+        <th>Menu $</th>
+        <th>Mkt Spend $</th>
+        <th>Avg Spend $</th>
+        <th>Reviews</th>
+        <th>Promo</th>
+        <th>Revenue $</th>
+      </tr></thead><tbody id="tbl-body"></tbody></table></div>
+    </div>
+  </div>
+
+</div><!-- /main -->
+
+<script>
+// ── Palette ──
+const CUISINES=['American','Italian','Japanese','Mexican'];
+const CUI_COL={'American':'#3b82f6','Italian':'#f59e0b','Japanese':'#10b981','Mexican':'#f43f5e'};
+const PROMO_COL=['#a78bfa','#22d3ee'];
+const chartMap={};
+
+// ── State ──
+let filtered=[...RAW_DATA];
+
+// ── Chart helpers ──
+const grd=(ctx,c1,c2,h=1)=>{const g=ctx.createLinearGradient(0,0,0,h);g.addColorStop(0,c1);g.addColorStop(1,c2);return g;};
+function dc(id){if(chartMap[id]){chartMap[id].destroy();delete chartMap[id];}}
+const fmt2=v=>v===null||v===undefined?'—':v.toFixed(2);
+const fmtK=v=>'$'+(v/1000).toFixed(1)+'K';
+const gridCol='rgba(255,255,255,0.05)';
+const baseOpts={
+  responsive:true,maintainAspectRatio:false,
+  plugins:{legend:{display:false},tooltip:{
+    backgroundColor:'rgba(15,15,25,0.96)',
+    titleColor:'#eeeef8',bodyColor:'#7878a0',
+    borderColor:'rgba(255,255,255,0.1)',borderWidth:1,
+    padding:10,
+  }},
+  scales:{
+    x:{grid:{color:gridCol},ticks:{color:'#7878a0',font:{size:11}}},
+    y:{grid:{color:gridCol},ticks:{color:'#7878a0',font:{size:11}}}
+  }
+};
+
+function mkLeg(id,labels,colors){
+  const el=document.getElementById(id);
+  if(!el)return;
+  el.innerHTML=labels.map((l,i)=>`<div class="li"><span class="ld" style="background:${colors[i%colors.length]}"></span>${l}</div>`).join('');
+}
+
+// ── Filters ──
+function applyFilters(){
+  const cuisine=document.getElementById('f-cuisine').value;
+  const promo=document.getElementById('f-promo').value;
+  const revBand=document.getElementById('f-rev').value;
+  const minCust=+document.getElementById('f-cust').value;
+  const minMkt=+document.getElementById('f-mkt').value;
+  const minRev=+document.getElementById('f-rev2').value;
+  const maxPrice=+document.getElementById('f-price').value;
+
+  filtered=RAW_DATA.filter(r=>{
+    if(cuisine&&r.Cuisine_Type!==cuisine)return false;
+    if(promo!==''&&r.Promotions!==+promo)return false;
+    if(revBand){const[lo,hi]=revBand.split(',').map(Number);if(r.Monthly_Revenue<lo||r.Monthly_Revenue>hi)return false;}
+    if(r.Number_of_Customers<minCust)return false;
+    if(r.Marketing_Spend<minMkt)return false;
+    if(r.Reviews<minRev)return false;
+    if(r.Menu_Price>maxPrice)return false;
+    return true;
+  });
+
+  document.getElementById('live-count').textContent=filtered.length.toLocaleString();
+  const parts=[];
+  if(cuisine)parts.push(cuisine);
+  if(promo!=='')parts.push(promo==='1'?'With promo':'No promo');
+  document.getElementById('hdr-summary').textContent=parts.length?parts.join(' · '):'All cuisines · All promotions';
+
+  renderAll();
+}
+
+function resetFilters(){
+  document.getElementById('f-cuisine').value='';
+  document.getElementById('f-promo').value='';
+  document.getElementById('f-rev').value='';
+  document.getElementById('f-cust').value=10;document.getElementById('cv-cust').textContent='10';
+  document.getElementById('f-mkt').value=0;document.getElementById('cv-mkt').textContent='0k';
+  document.getElementById('f-rev2').value=0;document.getElementById('cv-rev2').textContent='0';
+  document.getElementById('f-price').value=50;document.getElementById('cv-price').textContent='$50';
+  applyFilters();
+}
+
+// ── Aggregation helpers ──
+function grpBy(arr,key){const m={};arr.forEach(r=>{const k=r[key];if(!m[k])m[k]=[];m[k].push(r);});return m;}
+function avg(arr,key){return arr.length?arr.reduce((s,r)=>s+(r[key]||0),0)/arr.length:0;}
+function sum(arr,key){return arr.reduce((s,r)=>s+(r[key]||0),0);}
+function corr(arr,k1,k2){
+  const n=arr.length;if(!n)return 0;
+  const m1=avg(arr,k1),m2=avg(arr,k2);
+  let num=0,d1=0,d2=0;
+  arr.forEach(r=>{const a=r[k1]-m1,b=r[k2]-m2;num+=a*b;d1+=a*a;d2+=b*b;});
+  return (d1&&d2)?num/Math.sqrt(d1*d2):0;
+}
+
+// ── KPI ──
+function renderKPI(){
+  const n=filtered.length;
+  const totRev=sum(filtered,'Monthly_Revenue');
+  const avgRev=avg(filtered,'Monthly_Revenue');
+  const avgCust=avg(filtered,'Number_of_Customers');
+  const avgMkt=avg(filtered,'Marketing_Spend');
+  const avgReviews=avg(filtered,'Reviews');
+  const promoRate=n?filtered.filter(r=>r.Promotions===1).length/n*100:0;
+
+  const kpis=[
+    {label:'Total revenue',val:'$'+Math.round(totRev).toLocaleString(),sub:n+' records',col:'--amber'},
+    {label:'Avg monthly rev',val:'$'+avgRev.toFixed(0),sub:'per restaurant',col:'--green'},
+    {label:'Avg customers',val:Math.round(avgCust),sub:'per period',col:'--blue'},
+    {label:'Avg marketing',val:'$'+avgMkt.toFixed(1)+'K',sub:'spend per outlet',col:'--purple'},
+    {label:'Avg reviews',val:Math.round(avgReviews),sub:'score',col:'--cyan'},
+    {label:'Promo rate',val:promoRate.toFixed(1)+'%',sub:'with promotions',col:'--rose'},
+  ];
+  document.getElementById('kpi-row').innerHTML=kpis.map(k=>`
+    <div class="kpi" style="--kbg:var(${k.col})">
+      <div class="kpi-label">${k.label}</div>
+      <div class="kpi-val" style="color:var(${k.col})">${k.val}</div>
+      <div class="kpi-sub">${k.sub}</div>
+    </div>`).join('');
+}
+
+// ── Insights ──
+function renderInsights(){
+  const n=filtered.length;if(!n)return;
+  const g=grpBy(filtered,'Cuisine_Type');
+  const revByCuisine=Object.entries(g).map(([k,v])=>({k,avg:avg(v,'Monthly_Revenue')})).sort((a,b)=>b.avg-a.avg);
+  const topC=revByCuisine[0];
+  const withPromo=filtered.filter(r=>r.Promotions===1);
+  const noPromo=filtered.filter(r=>r.Promotions===0);
+  const promoDiff=withPromo.length&&noPromo.length?(avg(withPromo,'Monthly_Revenue')-avg(noPromo,'Monthly_Revenue')):0;
+  const r=corr(filtered,'Number_of_Customers','Monthly_Revenue');
+  const mktR=corr(filtered,'Marketing_Spend','Monthly_Revenue');
+
+  document.getElementById('insight-row').innerHTML=`
+    <div class="insight"><strong>${topC?topC.k:'—'}</strong> leads revenue at avg <strong>$${topC?topC.avg.toFixed(0):0}</strong>/mo across filtered records.</div>
+    <div class="insight">Promotions ${promoDiff>=0?'add':'reduce'} <strong>$${Math.abs(promoDiff).toFixed(0)}</strong> avg revenue vs no-promo outlets.</div>
+    <div class="insight">Customer count has <strong>${Math.abs(r)>.5?'strong':'moderate'}</strong> correlation with revenue (r=${r.toFixed(2)}).</div>
+    <div class="insight">Marketing spend correlation with revenue: <strong>r=${mktR.toFixed(2)}</strong> — ${Math.abs(mktR)>.3?'meaningful':'low'} signal.</div>
+  `;
+}
+
+// ── OVERVIEW CHARTS ──
+function renderOverview(){
+  // Revenue by cuisine
+  const g=grpBy(filtered,'Cuisine_Type');
+  const cuisineAvg=CUISINES.map(c=>g[c]?avg(g[c],'Monthly_Revenue'):0);
+  dc('c-rev-cuisine');
+  const ctx1=document.getElementById('c-rev-cuisine').getContext('2d');
+  chartMap['c-rev-cuisine']=new Chart(ctx1,{
+    type:'bar',
+    data:{labels:CUISINES,datasets:[{
+      label:'Avg revenue',data:cuisineAvg.map(v=>+v.toFixed(1)),
+      backgroundColor:CUISINES.map(c=>CUI_COL[c]+'99'),
+      borderColor:CUISINES.map(c=>CUI_COL[c]),borderWidth:1.5,borderRadius:6,
+    }]},
+    options:{...baseOpts,plugins:{...baseOpts.plugins},scales:{
+      x:{...baseOpts.scales.x},
+      y:{...baseOpts.scales.y,ticks:{...baseOpts.scales.y.ticks,callback:v=>'$'+v}}
+    }}
+  });
+
+  // Promo impact
+  const wp=filtered.filter(r=>r.Promotions===1);
+  const np=filtered.filter(r=>r.Promotions===0);
+  const promoData=[['No promo',avg(np,'Monthly_Revenue')],['With promo',avg(wp,'Monthly_Revenue')]];
+  dc('c-promo');
+  chartMap['c-promo']=new Chart(document.getElementById('c-promo'),{
+    type:'bar',
+    data:{labels:promoData.map(d=>d[0]),datasets:[{
+      data:promoData.map(d=>+d[1].toFixed(1)),
+      backgroundColor:['#a78bfa99','#22d3ee99'],borderColor:['#a78bfa','#22d3ee'],
+      borderWidth:1.5,borderRadius:6,
+    }]},
+    options:{...baseOpts,plugins:{...baseOpts.plugins},scales:{
+      x:{...baseOpts.scales.x},
+      y:{...baseOpts.scales.y,ticks:{...baseOpts.scales.y.ticks,callback:v=>'$'+v}}
+    }}
+  });
+
+  // Revenue distribution histogram
+  const bins=[0,100,150,200,250,300,350,400,450,500,570];
+  const binLabels=bins.slice(0,-1).map((b,i)=>`$${b}–${bins[i+1]}`);
+  const binCounts=bins.slice(0,-1).map((b,i)=>filtered.filter(r=>r.Monthly_Revenue>=b&&r.Monthly_Revenue<bins[i+1]).length);
+  dc('c-rev-dist');
+  chartMap['c-rev-dist']=new Chart(document.getElementById('c-rev-dist'),{
+    type:'bar',
+    data:{labels:binLabels,datasets:[{data:binCounts,backgroundColor:'#3b82f688',borderColor:'#3b82f6',borderWidth:1,borderRadius:4}]},
+    options:{...baseOpts,plugins:{...baseOpts.plugins},scales:{
+      x:{...baseOpts.scales.x,ticks:{...baseOpts.scales.x.ticks,maxRotation:45,font:{size:10}}},
+      y:{...baseOpts.scales.y}
+    }}
+  });
+
+  // Cuisine pie
+  const cuisineCounts=CUISINES.map(c=>g[c]?g[c].length:0);
+  mkLeg('leg-cuisine-pie',CUISINES,CUISINES.map(c=>CUI_COL[c]));
+  dc('c-cuisine-pie');
+  chartMap['c-cuisine-pie']=new Chart(document.getElementById('c-cuisine-pie'),{
+    type:'doughnut',
+    data:{labels:CUISINES,datasets:[{data:cuisineCounts,backgroundColor:CUISINES.map(c=>CUI_COL[c]+'bb'),borderColor:'#07070d',borderWidth:2}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{backgroundColor:'rgba(15,15,25,0.96)',titleColor:'#eeeef8',bodyColor:'#7878a0',borderColor:'rgba(255,255,255,0.1)',borderWidth:1}},cutout:'65%'}
+  });
+
+  // Avg spend by revenue band
+  const bands=[[-99,150,'<$150'],[150,300,'$150-300'],[300,450,'$300-450'],[450,999,'$450+']];
+  const bandAvg=bands.map(([lo,hi,l])=>({l,v:avg(filtered.filter(r=>r.Monthly_Revenue>=lo&&r.Monthly_Revenue<hi),'Average_Customer_Spending')}));
+  dc('c-spend-band');
+  chartMap['c-spend-band']=new Chart(document.getElementById('c-spend-band'),{
+    type:'bar',
+    data:{labels:bandAvg.map(b=>b.l),datasets:[{data:bandAvg.map(b=>+b.v.toFixed(1)),backgroundColor:['#f43f5e88','#f59e0b88','#3b82f688','#10b98188'],borderColor:['#f43f5e','#f59e0b','#3b82f6','#10b981'],borderWidth:1.5,borderRadius:6}]},
+    options:{...baseOpts,plugins:{...baseOpts.plugins},scales:{x:{...baseOpts.scales.x},y:{...baseOpts.scales.y,ticks:{...baseOpts.scales.y.ticks,callback:v=>'$'+v}}}}
+  });
+
+  // Heatmap as bubble / grouped bar
+  const custBins=[[10,30,'10-30'],[30,50,'30-50'],[50,70,'50-70'],[70,99,'70+']];
+  const mktBins=[[0,5,'<$5k'],[5,10,'$5-10k'],[10,15,'$10-15k'],[15,20,'$15-20k']];
+  const heatLabels=custBins.map(b=>b[2]);
+  const heatDs=mktBins.map((mb,mi)=>({
+    label:mb[2],
+    data:custBins.map(cb=>avg(filtered.filter(r=>r.Number_of_Customers>=cb[0]&&r.Number_of_Customers<cb[1]&&r.Marketing_Spend>=mb[0]&&r.Marketing_Spend<mb[1]),'Monthly_Revenue')||0),
+    backgroundColor:['#3b82f688','#10b98188','#f59e0b88','#a78bfa88'][mi],
+    borderColor:['#3b82f6','#10b981','#f59e0b','#a78bfa'][mi],
+    borderWidth:1,borderRadius:4,
+  }));
+  dc('c-heatmap');
+  chartMap['c-heatmap']=new Chart(document.getElementById('c-heatmap'),{
+    type:'bar',
+    data:{labels:heatLabels,datasets:heatDs},
+    options:{...baseOpts,plugins:{...baseOpts.plugins,legend:{display:true,labels:{color:'#7878a0',font:{size:11},boxWidth:10}}},scales:{x:{...baseOpts.scales.x},y:{...baseOpts.scales.y,ticks:{...baseOpts.scales.y.ticks,callback:v=>'$'+v}}}}
+  });
+}
+
+// ── TREND CHARTS ──
+function renderTrends(){
+  // Sort by customers, rolling avg revenue
+  const sorted=[...filtered].sort((a,b)=>a.Number_of_Customers-b.Number_of_Customers);
+  const WIN=30;
+  const rollingRev=sorted.map((_,i)=>{
+    const s=Math.max(0,i-WIN),e=Math.min(sorted.length-1,i+WIN);
+    return avg(sorted.slice(s,e+1),'Monthly_Revenue');
+  });
+  dc('c-trend-cust');
+  chartMap['c-trend-cust']=new Chart(document.getElementById('c-trend-cust'),{
+    type:'line',
+    data:{labels:sorted.map(r=>r.Number_of_Customers),datasets:[
+      {label:'Raw',data:sorted.map(r=>r.Monthly_Revenue),borderColor:'#3b82f630',backgroundColor:'transparent',pointRadius:1,borderWidth:1,tension:0},
+      {label:'Trend (30-pt avg)',data:rollingRev.map(v=>+v.toFixed(1)),borderColor:'#3b82f6',backgroundColor:'transparent',pointRadius:0,borderWidth:2.5,tension:0.4},
+    ]},
+    options:{...baseOpts,plugins:{...baseOpts.plugins,legend:{display:true,labels:{color:'#7878a0',font:{size:11},boxWidth:10}}},scales:{x:{...baseOpts.scales.x,title:{display:true,text:'Customer count',color:'#7878a0'}},y:{...baseOpts.scales.y,ticks:{...baseOpts.scales.y.ticks,callback:v=>'$'+v}}}}
+  });
+
+  // Sort by marketing
+  const sortedMkt=[...filtered].sort((a,b)=>a.Marketing_Spend-b.Marketing_Spend);
+  const rollingMkt=sortedMkt.map((_,i)=>{
+    const s=Math.max(0,i-WIN),e=Math.min(sortedMkt.length-1,i+WIN);
+    return avg(sortedMkt.slice(s,e+1),'Monthly_Revenue');
+  });
+  dc('c-trend-mkt');
+  chartMap['c-trend-mkt']=new Chart(document.getElementById('c-trend-mkt'),{
+    type:'line',
+    data:{labels:sortedMkt.map(r=>r.Marketing_Spend.toFixed(1)),datasets:[
+      {label:'Raw',data:sortedMkt.map(r=>r.Monthly_Revenue),borderColor:'#10b98130',backgroundColor:'transparent',pointRadius:1,borderWidth:1,tension:0},
+      {label:'Trend',data:rollingMkt.map(v=>+v.toFixed(1)),borderColor:'#10b981',backgroundColor:'transparent',pointRadius:0,borderWidth:2.5,tension:0.4},
+    ]},
+    options:{...baseOpts,plugins:{...baseOpts.plugins,legend:{display:true,labels:{color:'#7878a0',font:{size:11},boxWidth:10}}},scales:{x:{...baseOpts.scales.x,title:{display:true,text:'Marketing spend ($K)',color:'#7878a0'},ticks:{...baseOpts.scales.x.ticks,maxTicksLimit:10}},y:{...baseOpts.scales.y,ticks:{...baseOpts.scales.y.ticks,callback:v=>'$'+v}}}}
+  });
+
+  // Menu price distribution
+  const pBins=[[10,20,'$10-20'],[20,30,'$20-30'],[30,40,'$30-40'],[40,50,'$40-50']];
+  const pCounts=pBins.map(([lo,hi,l])=>filtered.filter(r=>r.Menu_Price>=lo&&r.Menu_Price<hi).length);
+  dc('c-price-dist');
+  chartMap['c-price-dist']=new Chart(document.getElementById('c-price-dist'),{
+    type:'bar',
+    data:{labels:pBins.map(b=>b[2]),datasets:[{data:pCounts,backgroundColor:'#f59e0b88',borderColor:'#f59e0b',borderWidth:1.5,borderRadius:6}]},
+    options:{...baseOpts,plugins:{...baseOpts.plugins}}
+  });
+
+  // Reviews distribution
+  const rBins=[[0,25,'0-25'],[25,50,'25-50'],[50,75,'50-75'],[75,100,'75-99']];
+  const rCounts=rBins.map(([lo,hi])=>filtered.filter(r=>r.Reviews>=lo&&r.Reviews<hi).length);
+  dc('c-review-dist');
+  chartMap['c-review-dist']=new Chart(document.getElementById('c-review-dist'),{
+    type:'bar',
+    data:{labels:rBins.map(b=>b[2]),datasets:[{data:rCounts,backgroundColor:'#a78bfa88',borderColor:'#a78bfa',borderWidth:1.5,borderRadius:6}]},
+    options:{...baseOpts,plugins:{...baseOpts.plugins}}
+  });
+
+  // Stacked revenue by customer bucket x cuisine
+  const cb=[[10,30,'10-30'],[30,50,'30-50'],[50,70,'50-70'],[70,99,'70+']];
+  mkLeg('leg-cust-stack',CUISINES,CUISINES.map(c=>CUI_COL[c]));
+  dc('c-cust-stack');
+  chartMap['c-cust-stack']=new Chart(document.getElementById('c-cust-stack'),{
+    type:'bar',
+    data:{labels:cb.map(b=>b[2]),datasets:CUISINES.map(c=>({
+      label:c,
+      data:cb.map(([lo,hi])=>{const sub=filtered.filter(r=>r.Cuisine_Type===c&&r.Number_of_Customers>=lo&&r.Number_of_Customers<hi);return +avg(sub,'Monthly_Revenue').toFixed(1);}),
+      backgroundColor:CUI_COL[c]+'88',borderColor:CUI_COL[c],borderWidth:1,stack:'s',borderRadius:3,
+    }))},
+    options:{...baseOpts,plugins:{...baseOpts.plugins,legend:{display:false}},scales:{
+      x:{...baseOpts.scales.x,stacked:true},
+      y:{...baseOpts.scales.y,stacked:true,ticks:{...baseOpts.scales.y.ticks,callback:v=>'$'+v}}
+    }}
+  });
+}
+
+// ── RELATIONSHIP CHARTS ──
+function renderScatter(){
+  const xKey=document.getElementById('sc-x').value;
+  const yKey=document.getElementById('sc-y').value;
+  const colorKey=document.getElementById('sc-color').value;
+  document.getElementById('scatter-title').textContent=`${xKey.replace(/_/g,' ')} vs ${yKey.replace(/_/g,' ')}`;
+
+  let datasets;
+  if(colorKey==='Cuisine_Type'){
+    datasets=CUISINES.map(c=>({
+      label:c,
+      data:filtered.filter(r=>r.Cuisine_Type===c).map(r=>({x:r[xKey],y:r[yKey]})),
+      backgroundColor:CUI_COL[c]+'99',pointRadius:4,pointHoverRadius:6,
+    }));
+    mkLeg('leg-scatter',CUISINES,CUISINES.map(c=>CUI_COL[c]));
+  } else {
+    datasets=[
+      {label:'No promo',data:filtered.filter(r=>r.Promotions===0).map(r=>({x:r[xKey],y:r[yKey]})),backgroundColor:'#a78bfa99',pointRadius:4},
+      {label:'With promo',data:filtered.filter(r=>r.Promotions===1).map(r=>({x:r[xKey],y:r[yKey]})),backgroundColor:'#22d3ee99',pointRadius:4},
+    ];
+    mkLeg('leg-scatter',['No promo','With promo'],['#a78bfa','#22d3ee']);
+  }
+
+  dc('c-scatter');
+  chartMap['c-scatter']=new Chart(document.getElementById('c-scatter'),{
+    type:'scatter',
+    data:{datasets},
+    options:{...baseOpts,plugins:{...baseOpts.plugins,tooltip:{...baseOpts.plugins.tooltip,callbacks:{label:ctx=>`${ctx.dataset.label}: (${ctx.parsed.x.toFixed(1)}, ${ctx.parsed.y.toFixed(1)})`}}},scales:{
+      x:{...baseOpts.scales.x,title:{display:true,text:xKey.replace(/_/g,' '),color:'#7878a0'}},
+      y:{...baseOpts.scales.y,title:{display:true,text:yKey.replace(/_/g,' '),color:'#7878a0'}}
+    }}
+  });
+}
+
+function renderRelations(){
+  renderScatter();
+
+  // Correlation matrix
+  const keys=['Number_of_Customers','Marketing_Spend','Menu_Price','Reviews','Average_Customer_Spending'];
+  const labels=['Customers','Mkt Spend','Menu Price','Reviews','Avg Spend'];
+  const pairs=[
+    ['Number_of_Customers','Monthly_Revenue'],
+    ['Marketing_Spend','Monthly_Revenue'],
+    ['Menu_Price','Monthly_Revenue'],
+    ['Reviews','Monthly_Revenue'],
+    ['Average_Customer_Spending','Monthly_Revenue'],
+  ];
+  const el=document.getElementById('corr-matrix');
+  el.innerHTML=pairs.map(([k1,k2])=>{
+    const r=corr(filtered,k1,k2);
+    const abs=Math.abs(r);
+    const cls=abs>.4?'corr-strong':abs>.2?'corr-mod':'corr-weak';
+    const bar=Math.round(abs*100);
+    return `<div style="display:flex;align-items:center;gap:8px;font-size:.7rem">
+      <span style="color:var(--tx2);font-family:var(--mono);min-width:82px">${k1.replace('Number_of_','').replace('_',' ')}</span>
+      <div style="flex:1;height:5px;background:var(--s3);border-radius:3px">
+        <div style="width:${bar}%;height:100%;background:${abs>.4?'var(--green)':abs>.2?'var(--blue)':'var(--rose)'};border-radius:3px"></div>
+      </div>
+      <span class="corr-badge ${cls}">r=${r.toFixed(2)}</span>
+    </div>`;
+  }).join('');
+
+  // Binned relationship charts
+  const custBins=[[10,30,'10-30'],[30,50,'30-50'],[50,70,'50-70'],[70,99,'70+']];
+  const mktBins=[[0,5,'<5k'],[5,10,'5-10k'],[10,15,'10-15k'],[15,20,'15-20k']];
+  const revBins=[[0,25,'0-25'],[25,50,'25-50'],[50,75,'50-75'],[75,100,'75-99']];
+
+  const makeBinChart=(id,bins,key,title)=>{
+    const d=bins.map(([lo,hi,l])=>({l,v:avg(filtered.filter(r=>r[key]>=lo&&r[key]<hi),'Monthly_Revenue')||0}));
+    dc(id);
+    chartMap[id]=new Chart(document.getElementById(id),{
+      type:'bar',
+      data:{labels:d.map(x=>x.l),datasets:[{data:d.map(x=>+x.v.toFixed(1)),backgroundColor:'#3b82f688',borderColor:'#3b82f6',borderWidth:1.5,borderRadius:5}]},
+      options:{...baseOpts,plugins:{...baseOpts.plugins},scales:{x:{...baseOpts.scales.x},y:{...baseOpts.scales.y,ticks:{...baseOpts.scales.y.ticks,callback:v=>'$'+v}}}}
+    });
+  };
+  makeBinChart('c-rel1',custBins,'Number_of_Customers','Customers → Revenue');
+  makeBinChart('c-rel2',mktBins,'Marketing_Spend','Marketing → Revenue');
+  makeBinChart('c-rel3',revBins,'Reviews','Reviews → Revenue');
+}
+
+// ── CUISINE DEEP-DIVE ──
+function renderCuisine(){
+  const g=grpBy(filtered,'Cuisine_Type');
+  const metrics=['Monthly_Revenue','Number_of_Customers','Marketing_Spend','Menu_Price','Reviews'];
+  const mLabels=['Revenue','Customers','Mkt Spend','Menu Price','Reviews'];
+
+  // Normalize each metric 0-1 for radar
+  const vals=CUISINES.map(c=>metrics.map(m=>g[c]?avg(g[c],m):0));
+  const minM=metrics.map((_,i)=>Math.min(...vals.map(v=>v[i])));
+  const maxM=metrics.map((_,i)=>Math.max(...vals.map(v=>v[i])));
+  const norm=vals.map(row=>row.map((v,i)=>maxM[i]>minM[i]?(v-minM[i])/(maxM[i]-minM[i])*100:50));
+
+  dc('c-cuisine-radar');
+  chartMap['c-cuisine-radar']=new Chart(document.getElementById('c-cuisine-radar'),{
+    type:'radar',
+    data:{labels:mLabels,datasets:CUISINES.map((c,i)=>({
+      label:c,data:norm[i].map(v=>+v.toFixed(1)),
+      borderColor:CUI_COL[c],backgroundColor:CUI_COL[c]+'22',pointBackgroundColor:CUI_COL[c],borderWidth:1.5,
+    }))},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,labels:{color:'#7878a0',font:{size:11},boxWidth:10}}},scales:{r:{grid:{color:'rgba(255,255,255,0.07)'},ticks:{display:false},pointLabels:{color:'#7878a0',font:{size:11}}}}}
+  });
+
+  // Revenue range (min/avg/max)
+  const ranges=CUISINES.map(c=>{
+    const rows=g[c]||[];
+    const revs=rows.map(r=>r.Monthly_Revenue);
+    return{c,mn:revs.length?Math.min(...revs):0,av:avg(rows,'Monthly_Revenue'),mx:revs.length?Math.max(...revs):0};
+  });
+  dc('c-cuisine-range');
+  chartMap['c-cuisine-range']=new Chart(document.getElementById('c-cuisine-range'),{
+    type:'bar',
+    data:{labels:CUISINES,datasets:[
+      {label:'Min',data:ranges.map(r=>+r.mn.toFixed(0)),backgroundColor:'#f43f5e55',borderColor:'#f43f5e',borderWidth:1,borderRadius:4},
+      {label:'Avg',data:ranges.map(r=>+r.av.toFixed(0)),backgroundColor:'#3b82f688',borderColor:'#3b82f6',borderWidth:1.5,borderRadius:4},
+      {label:'Max',data:ranges.map(r=>+r.mx.toFixed(0)),backgroundColor:'#10b98155',borderColor:'#10b981',borderWidth:1,borderRadius:4},
+    ]},
+    options:{...baseOpts,plugins:{...baseOpts.plugins,legend:{display:true,labels:{color:'#7878a0',font:{size:11},boxWidth:10}}},scales:{x:{...baseOpts.scales.x},y:{...baseOpts.scales.y,ticks:{...baseOpts.scales.y.ticks,callback:v=>'$'+v}}}}
+  });
+
+  // Mkt spend by cuisine
+  dc('c-mkt-cuisine');
+  chartMap['c-mkt-cuisine']=new Chart(document.getElementById('c-mkt-cuisine'),{
+    type:'bar',
+    data:{labels:CUISINES,datasets:[{data:CUISINES.map(c=>g[c]?+avg(g[c],'Marketing_Spend').toFixed(1):0),backgroundColor:CUISINES.map(c=>CUI_COL[c]+'88'),borderColor:CUISINES.map(c=>CUI_COL[c]),borderWidth:1.5,borderRadius:6}]},
+    options:{...baseOpts,plugins:{...baseOpts.plugins},scales:{x:{...baseOpts.scales.x},y:{...baseOpts.scales.y,ticks:{...baseOpts.scales.y.ticks,callback:v=>'$'+v+'K'}}}}
+  });
+
+  // Avg menu price
+  dc('c-price-cuisine');
+  chartMap['c-price-cuisine']=new Chart(document.getElementById('c-price-cuisine'),{
+    type:'bar',
+    data:{labels:CUISINES,datasets:[{data:CUISINES.map(c=>g[c]?+avg(g[c],'Menu_Price').toFixed(1):0),backgroundColor:CUISINES.map(c=>CUI_COL[c]+'88'),borderColor:CUISINES.map(c=>CUI_COL[c]),borderWidth:1.5,borderRadius:6}]},
+    options:{...baseOpts,plugins:{...baseOpts.plugins},scales:{x:{...baseOpts.scales.x},y:{...baseOpts.scales.y,ticks:{...baseOpts.scales.y.ticks,callback:v=>'$'+v}}}}
+  });
+
+  // Promo rate
+  dc('c-promo-cuisine');
+  chartMap['c-promo-cuisine']=new Chart(document.getElementById('c-promo-cuisine'),{
+    type:'bar',
+    data:{labels:CUISINES,datasets:[{data:CUISINES.map(c=>{const rows=g[c]||[];return rows.length?+(rows.filter(r=>r.Promotions===1).length/rows.length*100).toFixed(1):0;}),backgroundColor:CUISINES.map(c=>CUI_COL[c]+'88'),borderColor:CUISINES.map(c=>CUI_COL[c]),borderWidth:1.5,borderRadius:6}]},
+    options:{...baseOpts,plugins:{...baseOpts.plugins},scales:{x:{...baseOpts.scales.x},y:{...baseOpts.scales.y,min:0,max:100,ticks:{...baseOpts.scales.y.ticks,callback:v=>v+'%'}}}}
+  });
+}
+
+// ── DATA TABLE ──
+function renderTable(){
+  const rows=filtered.slice(0,500);
+  document.getElementById('tbl-count').textContent='('+filtered.length+(filtered.length>500?' — showing first 500':'')+')';
+  document.getElementById('tbl-body').innerHTML=rows.map(r=>{
+    const cls=r.Monthly_Revenue>=350?'rev-high':r.Monthly_Revenue>=200?'rev-mid':'rev-low';
+    return `<tr>
+      <td style="color:${CUI_COL[r.Cuisine_Type]}">${r.Cuisine_Type}</td>
+      <td>${r.Number_of_Customers}</td>
+      <td>$${r.Menu_Price.toFixed(1)}</td>
+      <td>$${r.Marketing_Spend.toFixed(1)}K</td>
+      <td>$${r.Average_Customer_Spending.toFixed(1)}</td>
+      <td>${r.Reviews}</td>
+      <td style="color:${r.Promotions?'var(--green)':'var(--tx3)'}">${r.Promotions?'Yes':'No'}</td>
+      <td class="${cls}">$${r.Monthly_Revenue.toFixed(0)}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ── CSV Export ──
+function exportCSV(){
+  const cols=['Cuisine_Type','Number_of_Customers','Menu_Price','Marketing_Spend','Average_Customer_Spending','Reviews','Promotions','Monthly_Revenue'];
+  const rows=[cols.join(','),...filtered.map(r=>cols.map(c=>r[c]).join(','))];
+  const blob=new Blob([rows.join('\n')],{type:'text/csv'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='restaurant_data_filtered.csv';a.click();
+}
+
+// ── Tab switching ──
+const activeTab={current:'overview'};
+function switchTab(id,btn){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('on'));
+  if(btn)btn.classList.add('on');
+  document.getElementById('tab-'+id).classList.add('on');
+  activeTab.current=id;
+  setTimeout(()=>Object.values(chartMap).forEach(c=>{try{c.resize()}catch(e){}}),50);
+}
+
+// ── Master render ──
+function renderAll(){
+  renderKPI();
+  renderInsights();
+  renderOverview();
+  renderTrends();
+  renderRelations();
+  renderCuisine();
+  renderTable();
+}
+
+// ── Boot ──
+renderAll();
+</script>
+</body>
+</html>
